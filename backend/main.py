@@ -1,14 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from pybaseball import pitching_stats
+from pybaseball import pitching_stats_bref, cache
 import pandas as pd
 import os
 import requests
 import httpx
+import time
 
 # Load environment variables
 load_dotenv()
+
+# Enable pybaseball caching to avoid repeated requests
+cache.enable()
 
 # Create FastAPI app
 app = FastAPI(title="Sports Bet API", version="1.0.0")
@@ -44,9 +48,32 @@ async def get_sports_data():
 
 @app.get("/get-pitching-stats")
 async def get_pitching_stats():
-    stats_df = pitching_stats(2024)
-    stats_df = stats_df.where(pd.notnull(stats_df), None)  # Convert NaN to None
-    return stats_df.to_dict(orient="records")
+    try:
+        # Use Baseball Reference function (avoids FanGraphs 403 errors)
+        # Add a small delay to avoid rate limiting
+        time.sleep(0.5)
+        
+        # Get data for 2014 season (pitching_stats_bref only takes one season at a time)
+        print("Fetching pitching data...")
+        data = pitching_stats_bref(2014)
+        print(f"Retrieved {len(data)} pitching records for 2014")
+        
+        # Return basic stats info instead of full dataset (for testing)
+        return {
+            "success": True,
+            "message": "Successfully retrieved pitching stats",
+            "count": len(data),
+            "season": 2014,
+            "columns": list(data.columns),
+            "sample_player": data.iloc[0]['Name'] if len(data) > 0 else None
+        }
+    except Exception as e:
+        print(f"Error fetching pitching stats: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to fetch pitching stats. The data source might be temporarily unavailable."
+        }
 
 # Placeholder endpoint for bets
 @app.get("/api/bets")
@@ -75,4 +102,4 @@ async def get_bets():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(app, host="0.0.0.0", port=8000)
