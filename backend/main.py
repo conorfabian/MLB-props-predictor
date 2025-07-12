@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from helpers import pitching_stats, sports_data, sports_bets
+from helpers import get_bets
 
 # Load environment variables
 load_dotenv()
@@ -23,18 +23,9 @@ app.add_middleware(
 async def root():
     return {"message": "MLB Props Predictor API is running"}
 
-@app.get("/get-sports-data")
-async def get_sports_data():
-    return sports_data()
-
-@app.get("/get-pitching-stats")
-async def get_pitching_stats():
-    return pitching_stats(2025)
-
-# Placeholder endpoint for bets
 @app.get("/api/bets")
-async def get_bets():
-    return sports_bets()
+async def todays_bets():
+    return get_bets()
 
 if __name__ == "__main__":
     import uvicorn
