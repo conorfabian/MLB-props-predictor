@@ -87,7 +87,11 @@ def sports_bets():
         }
     
     bets = []
+    count = 0
     for i, bet in enumerate(data):
+        if count > 4:
+            break
+        count += 1
         bets.append({
             "id": i + 1,
             "playerName": bet.get("playerName", "Unknown Player"),
