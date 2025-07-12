@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from helpers import get_bets
+from helpers import get_bets, get_player_batting_stats
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +22,10 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {"message": "MLB Props Predictor API is running"}
+
+@app.get("/api/player-id")
+async def player_batting_stats():
+    return get_player_batting_stats("Manny Machado")
 
 @app.get("/api/bets")
 async def todays_bets():
