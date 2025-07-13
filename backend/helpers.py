@@ -54,6 +54,29 @@ def get_player_batting_stats(playerName):
     except Exception as err:
         return {"error": f"An unexpected error occurred: {err}"}
     
+
+def get_player_meta(playerName):
+    player_id = get_player_id(playerName)
+    if not player_id:
+        return {"team": None, "position": None, "photo": None}
+
+    people_url = f"https://statsapi.mlb.com/api/v1/people/{player_id}?hydrate=currentTeam"
+    resp = requests.get(people_url)
+    resp.raise_for_status()
+    person = resp.json().get("people", [{}])[0]
+
+    team = person.get("currentTeam", {}).get("name")
+    position = person.get("primaryPosition", {}).get("abbreviation")
+
+    photo = (
+        "https://img.mlbstatic.com/mlb-photos/image/upload/"
+        "d_people:generic:headshot:67:current.png/"
+        "w_120,q_auto:best/"
+        f"v1/people/{player_id}/headshot/67/current"
+    )
+
+    return {"team": team, "position": position, "photo": photo}
+    
 def live_bets():
     response = requests.get(url, headers=headers)
     data = response.json()
@@ -92,34 +115,26 @@ def live_bets():
     return batters_odds
 
 def get_bets():
-    data = live_bets()
-
-    if not data:
-        return {
-            "message": "Unable to fetch current betting data",
-            "data": []
-        }
+    raw = live_bets()
+    if not raw:
+        return {"message": "Unable to fetch current betting data", "data": []}
     
     bets = []
-    count = 0
-    for i, bet in enumerate(data):
-        if count > 4:
-            break
-        count += 1
+    for i, sel in enumerate(raw[:5]):
+        name = sel["playerName"]
+        meta = get_player_meta(name)
+
         bets.append({
             "id": i + 1,
-            "playerName": bet.get("playerName", "Unknown Player"),
-            "team": "TBD",
-            "position": "TBD",
-            "photo": f"https://via.placeholder.com/120x120/1e293b/ffffff?text={bet.get('playerName', 'Player')[:2].upper()}",
-            "bet": bet.get("milestone"),
-            "odds": bet.get("oddsAmerican"),
+            "playerName": name,
+            "team": meta["team"] or "Unknown",
+            "position": meta["position"] or "Unknown",
+            "photo": meta["photo"],
+            "bet": sel["milestone"],
+            "odds": sel["oddsAmerican"],
             "confidence": 89,
-            "description": "TBD",
-            "reasoning": "TBD"
+            "description": "Description",
+            "reasoning": "Reasoning"
         })
-    
-    return {
-        "message": "Live betting data from DraftKings",
-        "data": bets
-    }
+
+    return {"message": "Live betting data from DraftKings", "data": bets}
