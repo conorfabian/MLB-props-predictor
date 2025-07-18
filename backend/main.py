@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import logging
 from database import get_active_bets, get_bet_history
 from scheduler import bet_scheduler
+from helpers import get_betting_events_today
 
 load_dotenv()
 
@@ -35,7 +36,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "MLB Props Predictor API is running"}
+    return get_betting_events_today()
 
 @app.get("/api/bets")
 async def get_current_bets():

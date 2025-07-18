@@ -4,20 +4,19 @@ import pandas as pd
 import numpy as np
 import time
 import requests
+import os
+from dotenv import load_dotenv
+from datetime import datetime
 
 import logging
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-url = "https://sportsbook-nash.draftkings.com/api/sportscontent/dkusnj/v1/leagues/84240/categories/743/subcategories/17320"
-headers = {
-    "Accept": "*/*",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Origin": "https://sportsbook.draftkings.com",
-    "Referer": "https://sportsbook.draftkings.com/",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-}
+SPORTSDATA_API_KEY = os.getenv("SPORTSDATA_IO_API_KEY")
+SPORTSDATA_BASE_URL = "https://api.sportsdata.io/v3/mlb/odds/json"
 
 def get_player_id(playerName):
     try:
@@ -81,44 +80,95 @@ def get_player_meta(playerName):
     )
 
     return {"team": team, "position": position, "photo": photo}
+
+def get_betting_events_today():
+    today = datetime.now().strftime("%Y-%m-%d")
+    url = f"{SPORTSDATA_BASE_URL}/BettingEventsByDate/{today}"
+
+    headers = {
+        "Ocp-Apim-Subscription-Key": SPORTSDATA_API_KEY
+    }
+    
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Error fetching betting events: {e}")
+        return []
+    
+def get_player_props_for_game(game_id, sportsbook_group="prizepicks"):
+    url = f"{SPORTSDATA_BASE_URL}/BettingPlayerPropsByGameID/{game_id}/{sportsbook_group}"
+    
+    headers = {
+        "Ocp-Apim-Subscription-Key": SPORTSDATA_API_KEY
+    }
+    
+    params = {
+        "include": "available"
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Error fetching player props for game {game_id}: {e}")
+        return []
     
 def live_bets():
-    response = requests.get(url, headers=headers)
-    data = response.json()
-
-    market_id = {}
-    for market in data.get("markets", []):
-        if market.get("name"):
-            market_id[market.get("name")] = market.get("id")
-
-    if not market_id:
-        print("No markets found.")
-        return None
-
-    id_to_market = {v: k for k, v in market_id.items()}
-    
-    batters_odds = []
-    for selection in data.get("selections", []):
-        market_id_value = selection.get("marketId")
-        if market_id_value in id_to_market:
-            milestone = selection.get("label")
-            odds = selection.get("displayOdds", {})
-            odds_decimal = odds.get("decimal")
-            odds_american = odds.get("american")
+    try:
+        events = get_betting_events_today()
+        
+        if not events:
+            logger.warning("No betting events found for today")
+            return []
+        
+        all_props = []
+        
+        for event in events:
+            game_id = event.get("GameID")
+            if not game_id:
+                continue
+                
+            props = get_player_props_for_game(game_id)
             
-            batters_odds.append({
-                "playerName": id_to_market[market_id_value],
-                "milestone": milestone,
-                "oddsDecimal": odds_decimal,
-                "oddsAmerican": odds_american
-            })
+            for market in props:
+                market_name = market.get("Name", "")
+                player_name = market.get("PlayerName")
+                
+                if not player_name:
+                    continue
 
-    if not batters_odds:
-        print("No valid odds found for batters.")
-        return None
-
-    return batters_odds
-
+                outcomes = market.get("Outcomes", [])
+                if not outcomes:
+                    continue
+                
+                prizepicks_outcome = None
+                for outcome in outcomes:
+                    sportsbook = outcome.get("Sportsbook", {})
+                    if sportsbook.get("Name", "").lower() == "prizepicks":
+                        prizepicks_outcome = outcome
+                        break
+                
+                if not prizepicks_outcome:
+                    continue
+                
+                all_props.append({
+                    "playerName": player_name,
+                    "milestone": market_name,
+                    "oddsDecimal": prizepicks_outcome.get("PayoutDecimal"),
+                    "oddsAmerican": prizepicks_outcome.get("PayoutAmerican"),
+                    "value": prizepicks_outcome.get("Value"),
+                    "betType": prizepicks_outcome.get("Name")
+                })
+        
+        return all_props
+        
+    except Exception as e:
+        logger.error(f"Error in live_bets: {e}")
+        return []       
+    
 def get_bets():
     try:
         raw = live_bets()
@@ -131,19 +181,28 @@ def get_bets():
             try:
                 name = sel["playerName"]
                 meta = get_player_meta(name)
+                
+                milestone = sel["milestone"]
+                bet_type = sel.get("betType", "")
+                value = sel.get("value", "")
+                
+                if value and bet_type:
+                    formatted_bet = f"{bet_type} {value} {milestone}"
+                else:
+                    formatted_bet = milestone
 
                 bets.append({
                     "id": i + 1,
                     "playerName": name,
                     "team": meta["team"] or "Unknown",
-                    "position": meta["position"] or "Unknown",
+                    "position": meta["position"] or "Unknown", 
                     "photo": meta["photo"],
-                    "bet": sel["milestone"],
+                    "bet": formatted_bet,
                     "odds": sel["oddsAmerican"],
                     "oddsDecimal": sel["oddsDecimal"],
                     "confidence": 89,
-                    "description": f"Betting on {name} to achieve {sel['milestone']}",
-                    "reasoning": f"Based on current odds and player performance metrics"
+                    "description": f"Betting on {name} to achieve {formatted_bet}",
+                    "reasoning": f"Based on PrizePicks odds and player performance metrics"
                 })
             except Exception as e:
                 logger.error(f"Error processing bet for {sel.get('playerName', 'unknown')}: {e}")
