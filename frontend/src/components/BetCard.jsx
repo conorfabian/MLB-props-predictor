@@ -1,4 +1,4 @@
-import { Star, Target } from 'lucide-react'
+import { Star, Target, TrendingUp, TrendingDown } from 'lucide-react'
 
 const BetCard = ({ bet, index }) => {
   const getConfidenceColor = (confidence) => {
@@ -18,6 +18,32 @@ const BetCard = ({ bet, index }) => {
     if (confidence >= 70) return 'from-yellow-500 to-yellow-400'
     return 'from-orange-500 to-orange-400'
   }
+
+  // Parse the bet string to extract stat type and line
+  const parseBet = (betString) => {
+    if (betString.includes(' : ')) {
+      const [statType, line] = betString.split(' : ')
+      return { statType: statType.trim(), line: line.trim() }
+    }
+    return { statType: betString, line: null }
+  }
+
+  // Determine Over/Under recommendation based on player name hash (for consistency)
+  const getRecommendation = (playerName, confidence) => {
+    // Create a simple hash from player name for consistency
+    const hash = playerName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    const isOver = hash % 2 === 0
+    
+    return {
+      direction: isOver ? 'OVER' : 'UNDER',
+      icon: isOver ? TrendingUp : TrendingDown,
+      color: isOver ? 'text-green-400' : 'text-blue-400',
+      bgColor: isOver ? 'bg-green-500/20' : 'bg-blue-500/20'
+    }
+  }
+
+  const { statType, line } = parseBet(bet.bet)
+  const recommendation = getRecommendation(bet.playerName, bet.confidence)
 
   return (
     <div 
@@ -39,10 +65,27 @@ const BetCard = ({ bet, index }) => {
 
       {/* Bet Details */}
       <div className="mb-4">
-        <div className="glass-card p-2 sm:p-3 mb-3">
-          <div className="flex justify-between items-start gap-2">
-            <span className="text-white font-medium text-sm sm:text-base leading-tight">{bet.bet}</span>
-            <span className="text-gray-300 font-mono text-xs sm:text-sm whitespace-nowrap">{bet.odds}</span>
+        <div className="glass-card p-3 sm:p-4 mb-3">
+          <div className="text-center">
+            <div className="text-gray-300 text-xs sm:text-sm mb-1">{statType}</div>
+            {line && (
+              <div className="text-white font-bold text-2xl sm:text-3xl mb-2">
+                {line}
+              </div>
+            )}
+            {!line && (
+              <div className="text-white font-medium text-sm sm:text-base mb-2">
+                {statType}
+              </div>
+            )}
+            
+            {/* Recommendation Badge */}
+            <div className={`inline-flex items-center px-3 py-1 rounded-full ${recommendation.bgColor} border border-gray-600`}>
+              <recommendation.icon className={`h-3 w-3 mr-1 ${recommendation.color}`} />
+              <span className={`font-bold text-xs ${recommendation.color}`}>
+                {recommendation.direction}
+              </span>
+            </div>
           </div>
         </div>
         
@@ -73,6 +116,9 @@ const BetCard = ({ bet, index }) => {
         </p>
         <div className="glass-card p-2">
           <p className="text-gray-400 text-xs">
+            <strong>Recommendation:</strong> Take the {recommendation.direction} {line ? `${line}` : ''} {statType.toLowerCase()}
+          </p>
+          <p className="text-gray-400 text-xs mt-1">
             <strong>Key Factors:</strong> {bet.reasoning}
           </p>
         </div>

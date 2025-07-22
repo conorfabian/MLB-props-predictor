@@ -18,7 +18,9 @@ const TodaysBetsPage = () => {
         }
         
         const result = await response.json()
-        setBets(result.data || [])
+        // Sort bets by confidence score in descending order (highest to lowest)
+        const sortedBets = (result.data || []).sort((a, b) => b.confidence - a.confidence)
+        setBets(sortedBets)
         setError(null)
       } catch (err) {
         console.error('Error fetching bets:', err)
@@ -95,7 +97,7 @@ const TodaysBetsPage = () => {
             <span className="text-white"> Top Bets</span>
           </h1>
           <p className="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto px-4">
-            AI-curated prop bets with the highest confidence scores for today's MLB games
+            AI-curated prop bets ranked by confidence score for today's MLB games
           </p>
           <div className="mt-6 glass-card inline-block px-4 sm:px-6 py-3">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm">
