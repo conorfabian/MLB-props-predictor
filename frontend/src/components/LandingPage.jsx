@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { TrendingUp, Target, Brain, Zap, Shield, BarChart3, Star, ArrowRight } from 'lucide-react'
+import { TrendingUp, Target, Brain, Zap, Shield, BarChart3, ArrowRight } from 'lucide-react'
+import BetCard from './BetCard'
 
 const LandingPage = () => {
   const [firstBet, setFirstBet] = useState(null)
@@ -13,7 +14,9 @@ const LandingPage = () => {
         if (response.ok) {
           const result = await response.json()
           if (result.data && result.data.length > 0) {
-            setFirstBet(result.data[0])
+            // Sort bets by confidence score to get the highest confidence bet
+            const sortedBets = result.data.sort((a, b) => b.confidence - a.confidence)
+            setFirstBet(sortedBets[0])
           }
         }
       } catch (error) {
@@ -25,18 +28,6 @@ const LandingPage = () => {
 
     fetchFirstBet()
   }, [])
-
-  const getConfidenceColor = (confidence) => {
-    if (confidence >= 80) return 'text-green-400'
-    if (confidence >= 70) return 'text-yellow-400'
-    return 'text-orange-400'
-  }
-
-  const getConfidenceGradient = (confidence) => {
-    if (confidence >= 80) return 'from-green-500/20 to-green-500/5'
-    if (confidence >= 70) return 'from-yellow-500/20 to-yellow-500/5'
-    return 'from-orange-500/20 to-orange-500/5'
-  }
 
   const features = [
     {
@@ -107,46 +98,14 @@ const LandingPage = () => {
             </div>
             
             <div className="max-w-2xl mx-auto">
-              <div className={`glass-card-hover p-6 floating bg-gradient-to-br ${getConfidenceGradient(firstBet.confidence)}`}>
-                {/* Player Header */}
-                <div className="flex items-center mb-4">
-                  <img 
-                    src={firstBet.photo} 
-                    alt={firstBet.playerName}
-                    className="w-16 h-16 rounded-full glass-card p-1 mr-4"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-white font-bold text-xl truncate">{firstBet.playerName}</h3>
-                    <p className="text-gray-300 text-sm">{firstBet.team} • {firstBet.position}</p>
-                  </div>
-                  <div className="flex items-center">
-                    <Star className={`h-5 w-5 mr-1 ${getConfidenceColor(firstBet.confidence)}`} />
-                    <span className={`font-bold text-lg ${getConfidenceColor(firstBet.confidence)}`}>
-                      {firstBet.confidence}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* Bet Details */}
-                <div className="glass-card p-4 mb-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-white font-medium text-lg">{firstBet.bet}</span>
-                    <span className="text-gray-300 font-mono text-lg">{firstBet.odds}</span>
-                  </div>
-                </div>
-
-                {/* Preview Description */}
-                <p className="text-gray-300 text-center mb-4">
-                  {firstBet.description}
-                </p>
-
-                {/* CTA */}
-                <div className="text-center">
-                  <Link to="/todays-bets" className="btn-primary inline-flex items-center">
-                    View All Bets
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Link>
-                </div>
+              <BetCard bet={firstBet} index={0} />
+              
+              {/* CTA below the card */}
+              <div className="text-center mt-6">
+                <Link to="/todays-bets" className="btn-primary inline-flex items-center">
+                  View All Bets
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Link>
               </div>
             </div>
           </div>
@@ -183,15 +142,17 @@ const LandingPage = () => {
         </div>
 
         {/* CTA Section */}
-        <div className="glass-card p-8 text-center liquid-gradient">
-          <h2 className="text-3xl font-bold text-white mb-4">Ready to Start Winning?</h2>
-          <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
+        <div className="glass-card p-6 sm:p-8 text-center liquid-gradient">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Ready to Start Winning?</h2>
+          <p className="text-gray-300 mb-6 max-w-2xl mx-auto text-sm sm:text-base">
             Join thousands of successful bettors who trust our AI-powered predictions 
             to make informed decisions and maximize their profits.
           </p>
-          <Link to="/todays-bets" className="btn-primary glow-effect">
-            <Target className="h-5 w-5 mr-2" />
-            Get Today's Predictions
+          <Link to="/todays-bets" className="btn-primary glow-effect inline-flex items-center justify-center flex-wrap gap-2 max-w-xs sm:max-w-none mx-auto">
+            <Target className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="text-sm sm:text-base whitespace-nowrap sm:whitespace-normal">
+              Get Today's Predictions
+            </span>
           </Link>
         </div>
       </div>
