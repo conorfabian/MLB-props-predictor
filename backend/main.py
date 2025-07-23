@@ -28,7 +28,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://mlb-props-predictor-*.vercel.app"
+        "https://mlb-props-predictor-il8gz7owk-conorfabians-projects.vercel.app/"
     ],
     allow_credentials=True,
     allow_methods=["*"],
