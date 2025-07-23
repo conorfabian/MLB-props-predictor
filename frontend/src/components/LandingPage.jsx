@@ -9,7 +9,7 @@ const LandingPage = () => {
   useEffect(() => {
     const fetchFirstBet = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/bets')
+        const response = await fetch(`${API_URL}/api/bets`)
         if (response.ok) {
           const result = await response.json()
           if (result.data && result.data.length > 0) {
