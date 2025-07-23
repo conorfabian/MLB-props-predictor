@@ -28,7 +28,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://mlb-props-predictor.vercel.app",  # Your custom domain (if you set one)
+        "https://mlb-props-predictor-*.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
