@@ -11,7 +11,7 @@ const TodaysBetsPage = () => {
     const fetchBets = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`${API_URL}/api/bets`)
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/bets`)
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
