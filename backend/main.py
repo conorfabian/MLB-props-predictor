@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from helpers import pitching_stats, sports_data
+from helpers import pitching_stats, sports_data, sports_bets
 
 # Load environment variables
 load_dotenv()
@@ -34,35 +34,7 @@ async def get_pitching_stats():
 # Placeholder endpoint for bets
 @app.get("/api/bets")
 async def get_bets():
-    return {
-        "message": "Bets endpoint placeholder",
-        "data": [
-            {
-                "id": 1,
-                "playerName": "Aaron Judge",
-                "team": "NYY",
-                "position": "OF",
-                "photo": "https://via.placeholder.com/120x120/1e293b/ffffff?text=AJ",
-                "bet": "Over 1.5 Total Bases",
-                "odds": "+110",
-                "confidence": 89,
-                "description": "Judge has exceeded 1.5 total bases in 8 of his last 10 games. Facing a left-handed pitcher with a 5.2 ERA against righties this season.",
-                "reasoning": "Strong recent form, favorable matchup vs LHP, excellent home stats"
-            },
-            {
-                "id": 2,
-                "playerName": "Ronald Acuña Jr.",
-                "team": "ATL",
-                "position": "OF",
-                "photo": "https://via.placeholder.com/120x120/1e293b/ffffff?text=RA",
-                "bet": "Over 0.5 Stolen Bases",
-                "odds": "+120",
-                "confidence": 78,
-                "description": "Acuña has stolen 1.5 bases in 6 of his last 10 games. Facing a right-handed pitcher with a 4.5 ERA against lefties this season.",
-                "reasoning": "Strong recent form, favorable matchup vs RHP, good stolen base stats"
-            }
-        ]
-    }
+    return sports_bets()
 
 if __name__ == "__main__":
     import uvicorn
