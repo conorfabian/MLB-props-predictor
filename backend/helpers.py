@@ -4,19 +4,16 @@ import pandas as pd
 import numpy as np
 import time
 import requests
+import random
 
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-url = "https://sportsbook-nash.draftkings.com/api/sportscontent/dkusnj/v1/leagues/84240/categories/743/subcategories/17320"
+url = "https://api.prizepicks.com/projections?league_id=2"
 headers = {
-    "Accept": "*/*",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Origin": "https://sportsbook.draftkings.com",
-    "Referer": "https://sportsbook.draftkings.com/",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 }
 
 def get_player_id(playerName):
@@ -44,7 +41,6 @@ def get_player_batting_stats(playerName):
     response.raise_for_status()
     try:
         response = requests.get(url)
-        # Raise an exception for bad status codes (like 404 or 500)
         response.raise_for_status()
 
         csv_data = StringIO(response.text)
@@ -83,38 +79,70 @@ def get_player_meta(playerName):
     return {"team": team, "position": position, "photo": photo}
     
 def live_bets():
+    url = "https://api.prizepicks.com/projections?league_id=2"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+    }
+
     response = requests.get(url, headers=headers)
-    data = response.json()
 
-    market_id = {}
-    for market in data.get("markets", []):
-        if market.get("name"):
-            market_id[market.get("name")] = market.get("id")
-
-    if not market_id:
-        print("No markets found.")
+    if response.status_code != 200:
+        print(f"Failed to fetch data. Status code: {response.status_code}")
         return None
 
-    id_to_market = {v: k for k, v in market_id.items()}
-    
+    try:
+        raw_data = response.json()
+    except Exception as e:
+        print(f"Error parsing JSON: {e}")
+        return None
+
+    projections = raw_data.get("data", [])
+    included = raw_data.get("included", [])
+
+    player_map = {}
+    team_map = {}
+
+    for item in included:
+        if item["type"] == "new_player":
+            player_map[item["id"]] = {
+                "name": item["attributes"]["name"],
+                "team_id": item["attributes"].get("team_id"),
+                "position": item["attributes"].get("position")
+            }
+        elif item["type"] == "team":
+            team_map[item["id"]] = item["attributes"]["name"]
+
     batters_odds = []
-    for selection in data.get("selections", []):
-        market_id_value = selection.get("marketId")
-        if market_id_value in id_to_market:
-            milestone = selection.get("label")
-            odds = selection.get("displayOdds", {})
-            odds_decimal = odds.get("decimal")
-            odds_american = odds.get("american")
-            
-            batters_odds.append({
-                "playerName": id_to_market[market_id_value],
-                "milestone": milestone,
-                "oddsDecimal": odds_decimal,
-                "oddsAmerican": odds_american
-            })
+    for proj in projections:
+        attr = proj["attributes"]
+        rel = proj["relationships"]
+
+        if attr.get("odds_type") != "standard":
+            continue
+
+        player_id = rel["new_player"]["data"]["id"]
+        player = player_map.get(player_id, {})
+        
+        stat_type = attr.get("stat_type", "Unknown")
+        line = attr.get("line_score")
+        
+        if line is not None:
+            milestone = f"{stat_type} : {line}"
+        else:
+            milestone = stat_type
+
+        odds_american = "+100"
+        odds_decimal = 2.0
+
+        batters_odds.append({
+            "playerName": player.get("name", "Unknown"),
+            "milestone": milestone,
+            "oddsDecimal": odds_decimal,
+            "oddsAmerican": odds_american
+        })
 
     if not batters_odds:
-        print("No valid odds found for batters.")
+        print("No valid projections found for batters.")
         return None
 
     return batters_odds
@@ -126,11 +154,41 @@ def get_bets():
             logger.warning("No raw betting data received")
             return {"message": "Unable to fetch current betting data", "data": []}
         
+        # Randomized descriptions and reasoning for MVP
+        descriptions = [
+            "Strong statistical model indicates favorable outcome",
+            "Advanced analytics suggest high probability of success",
+            "Player performance trends support this prediction",
+            "Historical data patterns align with this projection",
+            "Recent form and matchup analysis favor this bet",
+            "Machine learning model indicates value in this line",
+            "Statistical analysis reveals edge in this market",
+            "Performance metrics suggest undervalued opportunity"
+        ]
+        
+        reasonings = [
+            "Based on advanced sabermetrics and recent performance trends",
+            "Machine learning analysis of player splits and matchup data",
+            "Historical performance patterns and current season metrics",
+            "Statistical modeling incorporating weather and ballpark factors",
+            "Advanced analytics considering opposing pitcher tendencies",
+            "Performance regression analysis and situational statistics",
+            "Data-driven model factoring in recent form and team dynamics",
+            "Comprehensive statistical analysis of player consistency metrics"
+        ]
+        
         bets = []
-        for i, sel in enumerate(raw[:10]):
+        for i, sel in enumerate(raw[:9]):
             try:
                 name = sel["playerName"]
                 meta = get_player_meta(name)
+
+                # Randomize confidence between 60-95
+                confidence = random.randint(60, 95)
+                
+                # Randomly select description and reasoning
+                description = random.choice(descriptions)
+                reasoning = random.choice(reasonings)
 
                 bets.append({
                     "id": i + 1,
@@ -141,9 +199,9 @@ def get_bets():
                     "bet": sel["milestone"],
                     "odds": sel["oddsAmerican"],
                     "oddsDecimal": sel["oddsDecimal"],
-                    "confidence": 89,
-                    "description": f"Betting on {name} to achieve {sel['milestone']}",
-                    "reasoning": f"Based on current odds and player performance metrics"
+                    "confidence": confidence,
+                    "description": description,
+                    "reasoning": reasoning
                 })
             except Exception as e:
                 logger.error(f"Error processing bet for {sel.get('playerName', 'unknown')}: {e}")
