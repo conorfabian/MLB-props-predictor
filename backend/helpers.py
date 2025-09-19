@@ -5,6 +5,11 @@ import numpy as np
 import time
 import requests
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 url = "https://sportsbook-nash.draftkings.com/api/sportscontent/dkusnj/v1/leagues/84240/categories/743/subcategories/17320"
 headers = {
     "Accept": "*/*",
@@ -115,26 +120,38 @@ def live_bets():
     return batters_odds
 
 def get_bets():
-    raw = live_bets()
-    if not raw:
-        return {"message": "Unable to fetch current betting data", "data": []}
-    
-    bets = []
-    for i, sel in enumerate(raw[:5]):
-        name = sel["playerName"]
-        meta = get_player_meta(name)
+    try:
+        raw = live_bets()
+        if not raw:
+            logger.warning("No raw betting data received")
+            return {"message": "Unable to fetch current betting data", "data": []}
+        
+        bets = []
+        for i, sel in enumerate(raw[:10]):
+            try:
+                name = sel["playerName"]
+                meta = get_player_meta(name)
 
-        bets.append({
-            "id": i + 1,
-            "playerName": name,
-            "team": meta["team"] or "Unknown",
-            "position": meta["position"] or "Unknown",
-            "photo": meta["photo"],
-            "bet": sel["milestone"],
-            "odds": sel["oddsAmerican"],
-            "confidence": 89,
-            "description": "Description",
-            "reasoning": "Reasoning"
-        })
+                bets.append({
+                    "id": i + 1,
+                    "playerName": name,
+                    "team": meta["team"] or "Unknown",
+                    "position": meta["position"] or "Unknown",
+                    "photo": meta["photo"],
+                    "bet": sel["milestone"],
+                    "odds": sel["oddsAmerican"],
+                    "oddsDecimal": sel["oddsDecimal"],
+                    "confidence": 89,
+                    "description": f"Betting on {name} to achieve {sel['milestone']}",
+                    "reasoning": f"Based on current odds and player performance metrics"
+                })
+            except Exception as e:
+                logger.error(f"Error processing bet for {sel.get('playerName', 'unknown')}: {e}")
+                continue
 
-    return {"message": "Live betting data from DraftKings", "data": bets}
+        logger.info(f"Successfully processed {len(bets)} bets")
+        return {"message": "Live betting data processed", "data": bets}
+        
+    except Exception as e:
+        logger.error(f"Error in get_bets: {e}")
+        return {"message": "Error fetching betting data", "data": []}

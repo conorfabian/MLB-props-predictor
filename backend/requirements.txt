@@ -2,4 +2,10 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-dotenv==1.0.0
 python-multipart==0.0.6
-supabase==2.3.0 
+supabase==2.3.0
+pybaseball==2.2.7
+requests==2.31.0
+pandas>=2.2.0
+numpy>=1.26.0
+apscheduler==3.10.4
+websockets==12.0 
