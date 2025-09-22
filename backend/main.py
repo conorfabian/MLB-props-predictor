@@ -1,18 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from pybaseball import pitching_stats_bref, cache
-import pandas as pd
-import os
-import requests
-import httpx
-import time
+from helpers import pitching_stats, sports_data
 
 # Load environment variables
 load_dotenv()
-
-# Enable pybaseball caching to avoid repeated requests
-cache.enable()
 
 # Create FastAPI app
 app = FastAPI(title="Sports Bet API", version="1.0.0")
@@ -26,15 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-url = "https://sportsbook-nash.draftkings.com/api/sportscontent/dkusnj/v1/leagues/84240/categories/743/subcategories/17319"
-headers = {
-    "Accept": "*/*",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Origin": "https://sportsbook.draftkings.com",
-    "Referer": "https://sportsbook.draftkings.com/",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
-}
-
 # Basic health check endpoint
 @app.get("/")
 async def root():
@@ -42,38 +25,11 @@ async def root():
 
 @app.get("/get-sports-data")
 async def get_sports_data():
-    response = requests.get(url, headers=headers)
-    data = response.json()
-    return data
+    return sports_data()
 
 @app.get("/get-pitching-stats")
 async def get_pitching_stats():
-    try:
-        # Use Baseball Reference function (avoids FanGraphs 403 errors)
-        # Add a small delay to avoid rate limiting
-        time.sleep(0.5)
-        
-        # Get data for 2014 season (pitching_stats_bref only takes one season at a time)
-        print("Fetching pitching data...")
-        data = pitching_stats_bref(2014)
-        print(f"Retrieved {len(data)} pitching records for 2014")
-        
-        # Return basic stats info instead of full dataset (for testing)
-        return {
-            "success": True,
-            "message": "Successfully retrieved pitching stats",
-            "count": len(data),
-            "season": 2014,
-            "columns": list(data.columns),
-            "sample_player": data.iloc[0]['Name'] if len(data) > 0 else None
-        }
-    except Exception as e:
-        print(f"Error fetching pitching stats: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "Failed to fetch pitching stats. The data source might be temporarily unavailable."
-        }
+    return pitching_stats(2025)
 
 # Placeholder endpoint for bets
 @app.get("/api/bets")
